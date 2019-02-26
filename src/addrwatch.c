@@ -26,7 +26,7 @@ const char *argp_program_bug_address = PACKAGE_BUGREPORT;
 static char args_doc[] = "[INTERFACE1 INTERFACE2 ...]";
 static char doc[] =
 "Keep track of ethernet/ip address pairings for IPv4 and IPv6.\
-\vIf no interfaces given, then first non loopback interface is used. IP \
+\vIf no interfaces given, then first non loopback interface is used. IP/MAC \
 address blacklisting option '-b' can be used multiple times.";
 
 static struct argp_option options[] = {
@@ -44,7 +44,7 @@ static struct argp_option options[] = {
 	{0, 0, 0, 0, "Options for data filtering:" },
 	{"ipv4-only", '4', 0,      0, "Capture only IPv4 packets." },
 	{"ipv6-only", '6', 0,      0, "Capture only IPv6 packets." },
-	{"blacklist", 'b', "IP",   0, "Ignore pairings with specified IP." },
+	{"blacklist", 'b', "IPMAC",0, "Ignore pairings with specified IP or MAC." },
 	{"ratelimit", 'r', "NUM",  0, "Ratelimit duplicate ethernet/ip pairings to 1 every NUM seconds. If NUM = 0, ratelimiting is disabled. If NUM = -1, suppress duplicate entries indefinitely. Default is 0." },
 	{"hashsize",  'H', "NUM",  0, "Size of ratelimit hash table. Default is 1 (no hash table)." },
 	{0, 0, 0, 0, "Misc options:" },

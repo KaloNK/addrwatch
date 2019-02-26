@@ -8,6 +8,7 @@
 
 enum ip_type_len {
 	IP4_LEN = 4,
+	MAC_LEN = 6,
 	IP6_LEN = 16,
 };
 

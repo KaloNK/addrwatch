@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #define IP4_LEN	4
+#define MAC_LEN	6
 #define IP6_LEN 16
 
 const char *pkt_origin_str[] = {
@@ -18,6 +19,41 @@ const char *pkt_origin_str[] = {
 	"ND_NA",
 	"ND_DAD",
 };
+
+static int hex2num(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+
+	return -1;
+}
+
+int hwaddr_aton(const char *txt, uint8_t *addr)
+{
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		int a, b;
+
+		a = hex2num(*txt++);
+		if (a < 0)
+			return -1;
+
+		b = hex2num(*txt++);
+		if (b < 0)
+			return -1;
+
+		*addr++ = (a << 4) | b;
+		if (i < 5 && *txt++ != ':')
+			return -1;
+	}
+
+	return 1;
+}
 
 void blacklist_add(char *ip_str)
 {
@@ -42,8 +78,16 @@ void blacklist_add(char *ip_str)
 		return;
 	}
 
+	rc = hwaddr_aton(ip_str, ip->ip_addr);
+	if (rc == 1) {
+		ip->addr_len = MAC_LEN;
+		ip->next = cfg.blacklist;
+		cfg.blacklist = ip;
+		return;
+	}
+
 	free(ip);
-	log_msg(LOG_ERR, "Unable to blacklist, '%s' is not a valid IPv4 or IPv6 address", ip_str);
+	log_msg(LOG_ERR, "Unable to blacklist, '%s' is not a valid MAC, IPv4 or IPv6 address", ip_str);
 }
 
 void blacklist_free()
@@ -101,6 +145,9 @@ void save_pairing(struct pkt *p)
 	uint16_t hash;
 
 	if (blacklist_match(p->ip_addr, p->ip_len))
+		return;
+
+	if (blacklist_match(p->l2_addr, MAC_LEN))
 		return;
 
 	tstamp = p->pcap_header->ts.tv_sec;
