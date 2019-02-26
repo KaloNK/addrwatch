@@ -27,6 +27,7 @@ struct ctx_s {
 	int         foreground;
 	char       *config_file;
 	char       *prefix;
+	char       *proc;
 	MYSQL      *dbh;
 	MYSQL_STMT *stmt;
 	MYSQL_BIND  bind[7];
@@ -93,6 +94,8 @@ VALUES(\
 	FROM_UNIXTIME(?), ?, ?, ?, ?, ?, ?\
 )";
 
+static const char sql_insert_proc_template[] = "CALL %s (FROM_UNIXTIME(?), ?, ?, ?, ?, ?, ?)";
+
 static const char sql_insert_origin_template[] = "\
 INSERT INTO `%sorigin` (\
 	`id`, `name`, `description`\
@@ -120,6 +123,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 			break;
 		case 'p':
 			ctx->prefix = arg;
+			break;
+		case 's':
+			ctx->proc = arg;
 			break;
 		case 'c':
 			ctx->config_file = arg;
@@ -175,10 +181,16 @@ void stmt_init(struct ctx_s *data)
 	if (!data->stmt)
 		log_msg(LOG_ERR, "Error allocating MySQL statement object");
 
-	len = sizeof(sql_insert_log_template) + strlen(data->prefix); 
-	buf = (char *)malloc_c(len);
-	snprintf(buf, len, sql_insert_log_template, data->prefix);
-	
+	if ( !strcmp(data->proc, "") ) {
+		len = sizeof(sql_insert_log_template) + strlen(data->prefix); 
+		buf = (char *)malloc_c(len);
+		snprintf(buf, len, sql_insert_log_template, data->prefix);
+	} else {
+		len = sizeof(sql_insert_proc_template) + strlen(data->proc); 
+		buf = (char *)malloc_c(len);
+		snprintf(buf, len, sql_insert_proc_template, data->proc);
+	}
+
 	rc = mysql_stmt_prepare(data->stmt, buf, strnlen(buf, len));
 	if (rc)
 		log_msg(LOG_ERR, "Error preparing MySQL statement object: %s",
@@ -216,7 +228,9 @@ int db_connect(struct ctx_s *data)
 		return -1;
 	}
 
-	mysql_init_tables(data->dbh, data->prefix);
+	if ( !strcmp(data->proc, "") ) {
+		mysql_init_tables(data->dbh, data->prefix);
+	}
 	stmt_init(data);
 
 	return 0;
@@ -316,6 +330,7 @@ int main(int argc, char *argv[])
 	struct argp_option options[] = {
 		{"foreground",    'f', 0,      0, "Start as a foreground process" },
 		{"prefix",        'p', "STR",  0, "Prepend STR_ prefix to table names" },
+		{"storedproc",    's', "PROC",  0, "Use stored procedure PROC not tables" },
 		{"config",        'c', "FILE",  0, "Use FILE for MySQL config" },
 		{ 0 }
 	};
@@ -324,6 +339,7 @@ int main(int argc, char *argv[])
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.prefix = "";
+	ctx.proc = "";
 
 	log_open("addrwatch_mysql");
 
